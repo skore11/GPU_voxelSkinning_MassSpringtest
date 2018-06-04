@@ -10,56 +10,56 @@ using UnityEngine.Rendering;
 // Simple class that holds various property names and attributes for the 
 // MassSpringSystem.compute shader.
 //===========================================================================================
-
-public static class SpringComputeShaderProperties
-{
-    public const string PositionBufferName       = "posBuffer";
-    public const string VelocityBufferName       = "velBuffer";
-    public const string ExternalForcesBufferName = "externalForcesBuffer";
-    public const string NeighboursBufferName     = "neighboursBuffer";
-    public const string PropertiesBufferName     = "propertiesBuffer";
-    public const string DeltaTimeBufferName      = "deltaTimeBuffer";
-    public const int    NumProperties            = 4;
-    public const string PosKernel                = "CSMainPos";
-    public const string VelKernel                = "CSMainVel";
-}
-
-//===========================================================================================
-// Simple class that holds various property names and attributes for the 
-// SpringRenderShader.shader.
-//===========================================================================================
-
-public static class MassSpringRenderShaderProperties
-{
-    public const string PositionsBuffer = "buf_Points";
-    public const string DebugBuffer     = "buf_Debug";
-    public const string VelocityBuffer  = "buf_Vels";
-}
-
-//===========================================================================================
-// Summary
-//===========================================================================================
-/**
- * This class is used to periodically run position and velocity buffers through compute
- * shader kernels that update them according to a mass spring model. It also provides access
- * to properties of the model that can be tweaked from the editor. This class is used to 
- * update these property values in the compute shader as they are changed externally.
- * 
- * The MassSpawner Spawner member variable is used to spawn and update game objects according
- * to the positions on the mass spring grid. Alternatively, points can be rendered using
- * the RenderShader Shader member variable. In order to do this, uncomment the OnPostRender
- * function and comment the Update function and the call to SpawnPrimitives in the 
- * Initialise function.
- * 
- * Various ComputeBuffer variables are used to read and write data to and from the compute 
- * shader (MassSpringComputeShader).
- * 
- * This class can also be used to translate touch and mouse input (from the UITouchHandler) 
- * into forces that are applied to the mass spring system (implemented by the 
- * MassSpringComputeShader). 
- */
 namespace VoxelSystem.Demo
 {
+    public static class SpringComputeShaderProperties
+    {
+        public const string PositionBufferName = "posBuffer";
+        public const string VelocityBufferName = "velBuffer";
+        public const string ExternalForcesBufferName = "externalForcesBuffer";
+        public const string NeighboursBufferName = "neighboursBuffer";
+        public const string PropertiesBufferName = "propertiesBuffer";
+        public const string DeltaTimeBufferName = "deltaTimeBuffer";
+        public const int NumProperties = 4;
+        public const string PosKernel = "CSMainPos";
+        public const string VelKernel = "CSMainVel";
+    }
+
+    //===========================================================================================
+    // Simple class that holds various property names and attributes for the 
+    // SpringRenderShader.shader.
+    //===========================================================================================
+
+    public static class MassSpringRenderShaderProperties
+    {
+        public const string PositionsBuffer = "buf_Points";
+        public const string DebugBuffer = "buf_Debug";
+        public const string VelocityBuffer = "buf_Vels";
+    }
+
+    //===========================================================================================
+    // Summary
+    //===========================================================================================
+    /**
+     * This class is used to periodically run position and velocity buffers through compute
+     * shader kernels that update them according to a mass spring model. It also provides access
+     * to properties of the model that can be tweaked from the editor. This class is used to 
+     * update these property values in the compute shader as they are changed externally.
+     * 
+     * The MassSpawner Spawner member variable is used to spawn and update game objects according
+     * to the positions on the mass spring grid. Alternatively, points can be rendered using
+     * the RenderShader Shader member variable. In order to do this, uncomment the OnPostRender
+     * function and comment the Update function and the call to SpawnPrimitives in the 
+     * Initialise function.
+     * 
+     * Various ComputeBuffer variables are used to read and write data to and from the compute 
+     * shader (MassSpringComputeShader).
+     * 
+     * This class can also be used to translate touch and mouse input (from the UITouchHandler) 
+     * into forces that are applied to the mass spring system (implemented by the 
+     * MassSpringComputeShader). 
+     */
+
     public class MassSpringSystem : MonoBehaviour
     {
         /** The compute shader that implements the mass spring model.
@@ -97,7 +97,9 @@ namespace VoxelSystem.Demo
 
         /** The controller of the game object spawner object.
          */
-        public MassSpawner Spawner;
+        //public MassSpawner Spawner;
+
+        public MassSpringGPUTest Spawner;
 
         /** The controller of the touch and mouse input handler object.
          */
@@ -177,7 +179,7 @@ namespace VoxelSystem.Demo
         {
             var mesh = Sample();//bakes out the given mesh
             data = GPUVoxelizer.Voxelize(voxelizer, mesh, count, (type == MeshType.Volume));//takes mesh data and voxelizes it 
-           
+
             Initialise();
         }
 
@@ -191,7 +193,7 @@ namespace VoxelSystem.Demo
             data = GPUVoxelizer.Voxelize(voxelizer, mesh, count, (type == MeshType.Volume));
             int count2 = data.Width * data.Height * data.Depth;
             VertCount = count2;
-            Debug.Log(count2);
+            //Debug.Log(count2);
             HandleTouches();
             Dispatch();
             UpdatePrimitivePositions();
@@ -310,7 +312,7 @@ namespace VoxelSystem.Demo
             debugBuffer.SetData(positions);
             externalForcesBuffer.SetData(extForces);
             neighboursBuffer.SetData(neighbours);
-            
+
         }
 
         public void ReleaseBuffers()
@@ -362,7 +364,7 @@ namespace VoxelSystem.Demo
             Vector3[] positions = new Vector3[VertCount];
             positionBuffer.GetData(positions);
             Spawner.SetMassUnitSize(SpringLength);
-            Spawner.SpawnPrimitives(positions);
+            Spawner.SpawnPrimitives(positions);//called from mass spawner gameObject
         }
 
         //===========================================================================================
@@ -647,7 +649,7 @@ namespace VoxelSystem.Demo
             for (int i = 2 * GridResX + 2; i < 3 * GridResX - 2; i++)
                 velocities[i] = new Vector3(0.0f, 0.0f, Mathf.Sin(Time.time * freq) * damp * amp);
             velocityBuffer.SetData(velocities);
-            Debug.Log(velocities);
+            //Debug.Log(velocities);
         }
 
         Mesh Sample()
