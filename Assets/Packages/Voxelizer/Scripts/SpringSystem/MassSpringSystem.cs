@@ -10,8 +10,7 @@ using UnityEngine.Rendering;
 // Simple class that holds various property names and attributes for the 
 // MassSpringSystem.compute shader.
 //===========================================================================================
-namespace VoxelSystem.Demo
-{
+
     public static class SpringComputeShaderProperties
     {
         public const string PositionBufferName = "posBuffer";
@@ -97,9 +96,9 @@ namespace VoxelSystem.Demo
 
         /** The controller of the game object spawner object.
          */
-        //public MassSpawner Spawner;
+        public MassSpawner Spawner;
 
-        public MassSpringGPUTest Spawner;
+        //public MassSpringGPUTest Spawner;
 
         /** The controller of the touch and mouse input handler object.
          */
@@ -125,6 +124,8 @@ namespace VoxelSystem.Demo
         private ComputeBuffer velocityBuffer;
         private ComputeBuffer externalForcesBuffer;
 
+        private const int numNeighbours = 32;
+
         /** Our compute shader runs the same kernels in parallel on mutliple blocks of our
          *  mass spring grid. These blocks are of dimensions gridUnitSideX by gridUnitSideY,
          *  and there are numThreadsPerGroupX blocks along the x dimension of our grid and
@@ -137,7 +138,7 @@ namespace VoxelSystem.Demo
         private const int gridUnitSideZ = 1;
         private const int numThreadsPerGroupX = 4;
         private const int numThreadsPerGroupY = 4;
-        private const int numThreadsPerGroupZ = 4;
+        private const int numThreadsPerGroupZ = 1;
 
         /** The resolution of our entire grid, according to the resolution and layout of the individual
          *  blocks processed in parallel by the compute shader.
@@ -159,40 +160,40 @@ namespace VoxelSystem.Demo
          *  This material is instantiated using the RenderShader shader.
          */
         private Material RenderMaterial;
-        enum MeshType
-        {
-            Volume, Surface
-        };
+        //enum MeshType
+        //{
+        //    Volume, Surface
+       // };
 
-        [SerializeField] MeshType type = MeshType.Volume;
+        //[SerializeField] MeshType type = MeshType.Volume;
 
-        [SerializeField] new protected SkinnedMeshRenderer renderer;
-        [SerializeField] protected ComputeShader voxelizer, particleUpdate, massSpring;
-        [SerializeField] protected int count = 64;
+        //[SerializeField] new protected SkinnedMeshRenderer renderer;
+        //[SerializeField] protected ComputeShader voxelizer, particleUpdate, massSpring;
+        //[SerializeField] protected int count = 64;
 
-        GPUVoxelData data;// Voxel data to be derived from voxelizer script
+        //GPUVoxelData data;// Voxel data to be derived from voxelizer script
 
         //===========================================================================================
         // Overrides
         //===========================================================================================
         private void Start()
         {
-            var mesh = Sample();//bakes out the given mesh
-            data = GPUVoxelizer.Voxelize(voxelizer, mesh, count, (type == MeshType.Volume));//takes mesh data and voxelizes it 
+            //var mesh = Sample();//bakes out the given mesh
+            //data = GPUVoxelizer.Voxelize(voxelizer, mesh, count, (type == MeshType.Volume));//takes mesh data and voxelizes it 
 
             Initialise();
         }
 
         void Update()
         {
-            if (data == null) return;
+           // if (data == null) return;
 
-            data.Dispose();
+            //data.Dispose();
 
-            var mesh = Sample();
-            data = GPUVoxelizer.Voxelize(voxelizer, mesh, count, (type == MeshType.Volume));
-            int count2 = data.Width * data.Height * data.Depth;
-            VertCount = count2;
+            //var mesh = Sample();
+            //data = GPUVoxelizer.Voxelize(voxelizer, mesh, count, (type == MeshType.Volume));
+            //int count2 = data.Width * data.Height * data.Depth;
+            //VertCount = count2;
             //Debug.Log(count2);
             HandleTouches();
             Dispatch();
@@ -266,7 +267,7 @@ namespace VoxelSystem.Demo
             velocityBuffer = new ComputeBuffer(VertCount, sizeof(float) * 3);
             externalForcesBuffer = new ComputeBuffer(VertCount, sizeof(float) * 3);
             debugBuffer = new ComputeBuffer(VertCount, sizeof(float) * 3);
-            neighboursBuffer = new ComputeBuffer(VertCount, sizeof(float) * 72); //36 float pairs
+            neighboursBuffer = new ComputeBuffer(VertCount, sizeof(float) * numNeighbours * 2); //32 float pairs
             propertiesBuffer = new ComputeBuffer(SpringComputeShaderProperties.NumProperties, sizeof(float));
             deltaTimeBuffer = new ComputeBuffer(1, sizeof(float));
             //Debug.Log(VertCount);
@@ -286,7 +287,7 @@ namespace VoxelSystem.Demo
             Vector3[] positions = new Vector3[VertCount];
             Vector3[] velocities = new Vector3[VertCount];
             Vector3[] extForces = new Vector3[VertCount];
-            Vector3[] neighbours = new Vector3[VertCount * 36];
+            Vector2[] neighbours = new Vector2[VertCount * numNeighbours];
 
             int neighboursArrayIndex = 0;
             for (int i = 0; i < VertCount; i++)
@@ -299,8 +300,8 @@ namespace VoxelSystem.Demo
                 velocities[i] = new Vector3(0.0f, 0.0f, 0.0f);
                 extForces[i] = new Vector3(0.0f, 0.0f, 0.0f);
 
-                Vector3[] neighbourIndexFlagPairs = GetNeighbourIndexFlagPairs(i);
-                for (int n = 0; n < 36; ++n)
+                Vector2[] neighbourIndexFlagPairs = GetNeighbourIndexFlagPairs(i);
+                for (int n = 0; n < numNeighbours; ++n)
                 {
                     neighbours[neighboursArrayIndex] = neighbourIndexFlagPairs[n];
                     neighboursArrayIndex++;
@@ -382,9 +383,12 @@ namespace VoxelSystem.Demo
         public int[] GetNeighbours(int index)
         {
             //n, ne, e, se, s, sw, w, nw
-            int[] neighbours = new int[16] {index + GridResX, index + GridResX + 1, index + 1, index - GridResX + 1,
-                                       index - GridResX, index - GridResX - 1, index - 1, index + GridResX - 1, index + GridResY, index + GridResY + 1, index + 1, index - GridResY + 1,
-                                       index - GridResY, index - GridResY - 1, index - 1, index + GridResY - 1 };
+            int[] neighbours = new int[24] {index + GridResX, index + GridResX + 1, index + 1, index - GridResX + 1,
+                                       index - GridResX, index - GridResX - 1, index - 1, index + GridResX - 1,
+            index + GridResY, index + GridResY + 1, index + 1, index - GridResY + 1,
+                                       index - GridResY, index - GridResY - 1, index - 1, index + GridResY - 1,
+            index + GridResZ, index + GridResZ + 1, index + 1, index - GridResZ + 1,
+                                       index - GridResZ, index - GridResZ - 1, index - 1, index + GridResZ - 1};
 
             return neighbours;
         }
@@ -448,19 +452,19 @@ namespace VoxelSystem.Demo
          *  Neighbours are listed in 'clockwise' order of direct neighbours followed by clockwise bend neighbour positions:
          *  north, north-east, east, south-east, south, south-west, west, north-west, north-bend, east-bend, south-bend, west-bend. 
          */
-        public Vector3[] GetNeighbourIndexFlagPairs(int index)
+        public Vector2[] GetNeighbourIndexFlagPairs(int index)
         {
             //n, ne, e, se, s, sw, w, nw, nb, eb, sb, wb
             int[] neighburIndexes = GetNeighbours(index);
             int[] bendIndexes = { neighburIndexes[0] + GridResX, neighburIndexes[2] + 1, neighburIndexes[4] - GridResX, neighburIndexes[6] - 1, neighburIndexes[0] + GridResY, neighburIndexes[2] + 1, neighburIndexes[4] - GridResY, neighburIndexes[6] - 1 };
-            int[] neighbours = new int[36];
+            int[] neighbours = new int[32];
             neighburIndexes.CopyTo(neighbours, 0);
-            bendIndexes.CopyTo(neighbours, 16);
+            bendIndexes.CopyTo(neighbours, 24);
 
             /** Depending on the specific neighbour position, we need to check varying bounds conditions.
              */
-            Vector3[] neighbourFlagPairs = new Vector3[36];
-            for (int i = 0; i < 36; ++i)
+            Vector2[] neighbourFlagPairs = new Vector2[32];
+            for (int i = 0; i < 32; ++i)
             {
                 int idx = neighbours[i];
                 int idy = neighbours[i];
@@ -480,22 +484,23 @@ namespace VoxelSystem.Demo
                 else if (i == 11)
                     flag = westBendNeighbourExists(idx, GridResX) ? 1.0f : 0.0f;
 
-                if (i % 4 == 0 || i == 10)
+                if (i % 4 == 0 || i == 15)
                     flag = verticalNeighbourExists1(idy, VertCount) ? 1.0f : 0.0f;
-                else if (i == 1 || i == 3)
+                else if (i == 1 || i == 20)
                     flag = verticalNeighbourExists1(idy, VertCount) && eastNeighbourExists1(idy, GridResY, VertCount) ? 1.0f : 0.0f;
-                else if (i == 2)
+                else if (i == 18)
                     flag = eastNeighbourExists1(idy, GridResY, VertCount) ? 1.0f : 0.0f;
-                else if (i == 9)
+                else if (i == 12)
                     flag = eastBendNeighbourExists1(idy, GridResY, VertCount) ? 1.0f : 0.0f;
-                else if (i == 5 || i == 7)
+                else if (i == 14 || i == 17)
                     flag = verticalNeighbourExists1(idy, VertCount) && westNeighbourExists1(idy, GridResY) ? 1.0f : 0.0f;
-                else if (i == 6)
+                else if (i == 16)
                     flag = westNeighbourExists1(idy, GridResY) ? 1.0f : 0.0f;
-                else if (i == 11)
+                else if (i == 21)
                     flag = westBendNeighbourExists1(idy, GridResY) ? 1.0f : 0.0f;
-                neighbourFlagPairs[i] = new Vector3(idx, idy, flag);
-            }
+                neighbourFlagPairs[i] = new Vector2(idx, flag);
+            //neighbourFlagPairs[i] = new Vector3(idx, idy, flag);
+        }
 
             return neighbourFlagPairs;
         }
@@ -607,10 +612,10 @@ namespace VoxelSystem.Demo
             SetGridPropertiesAndTime();
 
             SetVelocityBuffers();
-            MassSpringComputeShader.Dispatch(VelKernel, gridUnitSideX, gridUnitSideY, 1);
+            MassSpringComputeShader.Dispatch(VelKernel, gridUnitSideX, gridUnitSideY, gridUnitSideZ);
 
             SetPositionBuffers();
-            MassSpringComputeShader.Dispatch(PosKernel, gridUnitSideX, gridUnitSideY, 1);
+            MassSpringComputeShader.Dispatch(PosKernel, gridUnitSideX, gridUnitSideY, gridUnitSideZ);
 
         }
 
@@ -652,12 +657,12 @@ namespace VoxelSystem.Demo
             //Debug.Log(velocities);
         }
 
-        Mesh Sample()
-        {
-            var mesh = new Mesh();
-            renderer.BakeMesh(mesh);//requies renderer to bake mesh first
-            return mesh;
-        }
+        //Mesh Sample()
+        //{
+           // var mesh = new Mesh();
+           // renderer.BakeMesh(mesh);//requies renderer to bake mesh first
+            //return mesh;
+        //}
 
 
         /*
@@ -675,4 +680,4 @@ namespace VoxelSystem.Demo
             return mesh;
         }*/
     }
-}
+
